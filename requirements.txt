@@ -3,9 +3,10 @@ twilio==9.2.3
 python-dotenv==1.0.1
 requests==2.32.3
 whisper==1.1.10
-torch==2.2.1
+torch
 torchaudio==2.2.2
 gTTS==2.5.1
 groq==0.9.0
 google-generativeai==0.7.2
+
 
