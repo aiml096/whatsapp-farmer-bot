@@ -15,19 +15,20 @@ import requests
 load_dotenv()
 TWILIO_SID = os.getenv("TWILIO_SID")
 TWILIO_AUTH = os.getenv("TWILIO_AUTH")
-TWILIO_WHATSAPP = "whatsapp:+14155238886"
+TWILIO_WHATSAPP = "whatsapp:+14155238886"  # Twilio sandbox number
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
+BASE_URL = os.getenv("BASE_URL")
 
 client = Client(TWILIO_SID, TWILIO_AUTH)
 groq_client = Groq(api_key=GROQ_API_KEY)
 
-# Whisper model
-whisper_model = whisper.load_model("tiny")
+# Load Whisper model
+whisper_model = whisper.load_model("tiny")  # lightweight for speed
 
 app = Flask(__name__)
 
 # -----------------------------
-# MAIN WEBHOOK
+# WHATSAPP WEBHOOK
 # -----------------------------
 @app.route("/whatsapp", methods=["POST"])
 def whatsapp_webhook():
@@ -39,11 +40,15 @@ def whatsapp_webhook():
     reply_text = "ക്ഷമിക്കണം, ഞാൻ അത് മനസ്സിലാക്കിയില്ല."
 
     try:
-        # Text
+        # -----------------------------
+        # 1️⃣ Text message
+        # -----------------------------
         if incoming_msg:
             reply_text = process_llm(incoming_msg)
 
-        # Audio
+        # -----------------------------
+        # 2️⃣ Voice message
+        # -----------------------------
         elif media_url and "audio" in media_type:
             audio_bytes = requests.get(media_url).content
             with open("audio.ogg", "wb") as f:
@@ -52,14 +57,20 @@ def whatsapp_webhook():
             user_text = result["text"]
             reply_text = process_llm(user_text)
 
-        # Image
+        # -----------------------------
+        # 3️⃣ Image message
+        # -----------------------------
         elif media_url and "image" in media_type:
             reply_text = analyze_image(media_url)
 
-        # Send text reply
+        # -----------------------------
+        # 4️⃣ Send text reply
+        # -----------------------------
         resp.message(reply_text)
 
-        # Send audio reply
+        # -----------------------------
+        # 5️⃣ Send Malayalam audio reply
+        # -----------------------------
         send_audio_tts(reply_text, request.values.get("From"))
 
     except Exception as e:
@@ -69,7 +80,7 @@ def whatsapp_webhook():
     return str(resp)
 
 # -----------------------------
-# LLM
+# LLM Processing
 # -----------------------------
 def process_llm(user_text):
     prompt = f"You are a Kerala farming assistant. User said: {user_text}. Reply in Malayalam."
@@ -86,7 +97,7 @@ def analyze_image(image_url):
     return "ചിത്രം പരിശോധിച്ചു. ഇലയിൽ രോഗ ലക്ഷണങ്ങൾ കാണുന്നു, ജൈവ കീടനാശിനി ഉപയോഗിക്കുക."
 
 # -----------------------------
-# TTS
+# Generate TTS audio
 # -----------------------------
 def send_audio_tts(text, to):
     tts = gTTS(text=text, lang="ml")
@@ -96,19 +107,19 @@ def send_audio_tts(text, to):
     client.messages.create(
         from_=TWILIO_WHATSAPP,
         to=to,
-        body="🔊 ഓഡിയോ മറുപടി",
-        media_url=[f"{os.getenv('BASE_URL')}/reply.mp3"]
+        body="🔊 Malayalam audio reply",
+        media_url=[f"{BASE_URL}/reply.mp3"]
     )
 
 # -----------------------------
-# Serve TTS
+# Serve TTS file
 # -----------------------------
 @app.route("/reply.mp3")
 def serve_audio():
     return send_file("reply.mp3", mimetype="audio/mpeg")
 
 # -----------------------------
-# RUN
+# Run App
 # -----------------------------
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
